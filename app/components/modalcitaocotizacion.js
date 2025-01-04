@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { addDoc, collection, query, where, getDocs, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/app/firebase/config";
 import Swal from "sweetalert2";
 import ModalCitas from "@/app/components/modalcitas";
@@ -10,10 +17,10 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
     clienteNombre: "",
     correo: "",
     telefono: "",
+    descripcion: "",
     direccion: "",
     fecha: "",
     hora: "",
-    descripcion: "",
     servicio: "cita",
   });
   const [availableHours, setAvailableHours] = useState([]);
@@ -28,7 +35,7 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (formData.fecha) {
+    if (formData.fecha && formData.servicio === "cita") {
       fetchAvailableHours(formData.fecha);
     }
   }, [formData.fecha]);
@@ -38,10 +45,10 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
       clienteNombre: "",
       correo: "",
       telefono: "",
+      descripcion: "",
       direccion: "",
       fecha: "",
       hora: "",
-      descripcion: "",
       servicio: "cita",
     });
   };
@@ -64,7 +71,11 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
       const hours = [];
       const startOfDay = new Date(`${selectedDate}T08:00:00`);
       const endOfDay = new Date(`${selectedDate}T18:00:00`);
-      for (let time = startOfDay; time <= endOfDay; time.setMinutes(time.getMinutes() + 30)) {
+      for (
+        let time = startOfDay;
+        time <= endOfDay;
+        time.setMinutes(time.getMinutes() + 30)
+      ) {
         const formattedTime = new Date(time).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -92,11 +103,21 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
 
     try {
       const subcollection = formData.servicio === "cita" ? "citas" : "cotizaciones";
-      await addDoc(collection(db, "servicios", docId, subcollection), {
-        ...formData,
+      const dataToSave = {
+        clienteNombre: formData.clienteNombre,
+        correo: formData.correo,
+        telefono: formData.telefono,
+        descripcion: formData.descripcion,
+        ...(formData.servicio === "cita" && {
+          direccion: formData.direccion,
+          fecha: formData.fecha,
+          hora: formData.hora,
+        }),
         estado: "Pendiente",
         fechaSolicitud: serverTimestamp(),
-      });
+      };
+
+      await addDoc(collection(db, "servicios", docId, subcollection), dataToSave);
       Swal.fire("Éxito", "Solicitud enviada correctamente.", "success");
       resetForm();
       onClose();
@@ -117,16 +138,18 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
             ×
           </button>
 
-          <h2 className="text-2xl font-semibold mb-4">Agendar Cita o Cotización</h2>
+          <h2 className="text-2xl text-black font-semibold mb-4">Agendar Cita o Cotización</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Nombre del cliente</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Nombre del cliente
+              </label>
               <input
                 type="text"
                 name="clienteNombre"
                 value={formData.clienteNombre}
                 onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
+                className="w-full mt-1 p-2 text-black border border-gray-300 rounded"
                 required
               />
             </div>
@@ -138,7 +161,7 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
                 name="correo"
                 value={formData.correo}
                 onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
+                className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
                 required
               />
             </div>
@@ -150,56 +173,62 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
                 name="telefono"
                 value={formData.telefono}
                 onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
+                className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Dirección</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
+            {formData.servicio === "cita" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Dirección
+                  </label>
+                  <input
+                    type="text"
+                    name="direccion"
+                    value={formData.direccion}
+                    onChange={handleFormChange}
+                    className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
+                    required
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Fecha</label>
-              <input
-                type="date"
-                name="fecha"
-                value={formData.fecha}
-                onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
-                required
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Fecha</label>
+                  <input
+                    type="date"
+                    name="fecha"
+                    value={formData.fecha}
+                    onChange={handleFormChange}
+                    className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
+                    required
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Hora</label>
-              <select
-                name="hora"
-                value={formData.hora}
-                onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
-                required
-              >
-                <option value="">Selecciona una hora</option>
-                {isLoading ? (
-                  <option>Cargando...</option>
-                ) : (
-                  availableHours.map((hour) => (
-                    <option key={hour} value={hour}>
-                      {hour}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Hora</label>
+                  <select
+                    name="hora"
+                    value={formData.hora}
+                    onChange={handleFormChange}
+                    className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
+                    required
+                  >
+                    <option value="">Selecciona una hora</option>
+                    {isLoading ? (
+                      <option>Cargando...</option>
+                    ) : (
+                      availableHours.map((hour) => (
+                        <option key={hour} value={hour}>
+                          {hour}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Descripción</label>
@@ -207,7 +236,7 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
                 name="descripcion"
                 value={formData.descripcion}
                 onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
+                className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
               ></textarea>
             </div>
 
@@ -217,7 +246,7 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
                 name="servicio"
                 value={formData.servicio}
                 onChange={handleFormChange}
-                className="w-full mt-1 p-2 border border-gray-300 rounded"
+                className="w-full mt-1 p-2 border text-black border-gray-300 rounded"
                 required
               >
                 <option value="cita">Cita</option>
@@ -250,11 +279,10 @@ export default function ModalCitaCotizacion({ isOpen, onClose, docId }) {
           </form>
         </div>
 
-        {/* Modales de Citas y Cotizaciones */}
+        {/* Modales */}
         <ModalCitas
           isOpen={isCitasModalOpen}
           onClose={() => setIsCitasModalOpen(false)}
-          telefono={formData.telefono}
           docId={docId}
         />
         <ModalCotizaciones

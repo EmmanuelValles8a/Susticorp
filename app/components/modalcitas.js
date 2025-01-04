@@ -1,52 +1,51 @@
-import React, { useState, useEffect } from "react";
-import { collection, query, where, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/app/firebase/config";
-import Swal from "sweetalert2";
+import React, { useState } from 'react';
+import { db } from '@/app/firebase/config';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import Swal from 'sweetalert2';
 
-export default function ModalCitas({ isOpen, onClose, docId }) {
+const ModalCitas = ({ isOpen, onClose, docId }) => {
+  const [telefono, setTelefono] = useState('');
   const [citas, setCitas] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reagendarCitaId, setReagendarCitaId] = useState(null);
+  const [nuevaFecha, setNuevaFecha] = useState('');
+  const [nuevaHora, setNuevaHora] = useState('');
 
-  useEffect(() => {
-    if (isOpen && docId) {
-      fetchCitas();
-    }
-  }, [isOpen, docId]);
-
-  const fetchCitas = async () => {
+  const buscarCitas = async () => {
+    setLoading(true);
     try {
-      setIsLoading(true);
-      const q = query(collection(db, "servicios", docId, "citas"));
+      const q = query(collection(db, 'servicios', docId, 'citas'), where('telefono', '==', telefono));
       const querySnapshot = await getDocs(q);
       setCitas(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Error al cargar citas:", error);
-      Swal.fire("Error", "No se pudieron cargar las citas.", "error");
+      console.error('Error al buscar citas:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const cancelarCita = async (id) => {
     try {
-      await deleteDoc(doc(db, "servicios", docId, "citas", id));
-      Swal.fire("Éxito", "Cita cancelada correctamente.", "success");
+      const citaRef = doc(db, 'servicios', docId, 'citas', id);
+      await updateDoc(citaRef, { estado: 'Cancelado' });
+      Swal.fire('Éxito', 'Cita cancelada correctamente.', 'success');
       setCitas((prev) => prev.filter((cita) => cita.id !== id));
     } catch (error) {
-      console.error("Error cancelando cita:", error);
-      Swal.fire("Error", "No se pudo cancelar la cita.", "error");
+      console.error('Error cancelando cita:', error);
+      Swal.fire('Error', 'No se pudo cancelar la cita.', 'error');
     }
   };
 
-  const reagendarCita = async (id, nuevaFecha, nuevaHora) => {
+  const reagendarCita = async () => {
     try {
-      const citaRef = doc(db, "servicios", docId, "citas", id);
+      const citaRef = doc(db, 'servicios', docId, 'citas', reagendarCitaId);
       await updateDoc(citaRef, { fecha: nuevaFecha, hora: nuevaHora });
-      Swal.fire("Éxito", "Cita reagendada correctamente.", "success");
-      fetchCitas();
+      Swal.fire('Éxito', 'Cita reagendada correctamente.', 'success');
+      setReagendarCitaId(null);
+      buscarCitas();
     } catch (error) {
-      console.error("Error reagendando cita:", error);
-      Swal.fire("Error", "No se pudo reagendar la cita.", "error");
+      console.error('Error reagendando cita:', error);
+      Swal.fire('Error', 'No se pudo reagendar la cita.', 'error');
     }
   };
 
@@ -60,37 +59,90 @@ export default function ModalCitas({ isOpen, onClose, docId }) {
           >
             ×
           </button>
-          <h2 className="text-2xl font-semibold mb-4">Citas</h2>
-          {isLoading ? (
-            <p>Cargando...</p>
+          <h2 className="text-2xl text-black font-semibold mb-4">Buscar Citas</h2>
+
+          {!reagendarCitaId ? (
+            <>
+              <div>
+                <label htmlFor="telefono" className='text-black'>Teléfono</label>
+                <input
+                  type="text"
+                  id="telefono"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  className="w-full text-black px-3 py-2 border rounded"
+                />
+                <button
+                  onClick={buscarCitas}
+                  className="mt-2 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+                  disabled={loading}
+                >
+                  {loading ? 'Buscando...' : 'Buscar'}
+                </button>
+              </div>
+
+              <ul className="mt-4">
+                {citas.map((cita) => (
+                  <li key={cita.id} className="border-b py-2">
+                    <p className='text-black'>
+                      <strong>Fecha:</strong> {cita.fecha} - <strong>Hora:</strong> {cita.hora}
+                    </p>
+                    <p className='text-black'>{cita.descripcion}</p>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => cancelarCita(cita.id)}
+                        className="text-red-500 underline"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => setReagendarCitaId(cita.id)}
+                        className="text-blue-500 underline"
+                      >
+                        Reagendar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
-            <ul>
-              {citas.map((cita) => (
-                <li key={cita.id} className="border-b py-2">
-                  <p>
-                    <strong>Fecha:</strong> {cita.fecha} - <strong>Hora:</strong> {cita.hora}
-                  </p>
-                  <p>{cita.descripcion}</p>
-                  <button
-                    onClick={() => cancelarCita(cita.id)}
-                    className="text-red-500 underline"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() =>
-                      reagendarCita(cita.id, "2025-01-10", "14:00") // Cambiar valores según la lógica de tu app
-                    }
-                    className="text-blue-500 underline ml-4"
-                  >
-                    Reagendar
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Reagendar Cita</h3>
+              <label htmlFor="nuevaFecha">Nueva Fecha</label>
+              <input
+                type="date"
+                id="nuevaFecha"
+                value={nuevaFecha}
+                onChange={(e) => setNuevaFecha(e.target.value)}
+                className="w-full px-3 py-2 border rounded mb-4"
+              />
+              <label htmlFor="nuevaHora">Nueva Hora</label>
+              <input
+                type="time"
+                id="nuevaHora"
+                value={nuevaHora}
+                onChange={(e) => setNuevaHora(e.target.value)}
+                className="w-full px-3 py-2 border rounded mb-4"
+              />
+              <button
+                onClick={reagendarCita}
+                className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => setReagendarCitaId(null)}
+                className="ml-4 text-gray-500 underline"
+              >
+                Cancelar
+              </button>
+            </div>
           )}
         </div>
       </div>
     )
   );
-}
+};
+
+export default ModalCitas;

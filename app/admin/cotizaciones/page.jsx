@@ -31,6 +31,11 @@ function Cotizaciones() {
         ...doc.data(),
       }));
       setServicios(serviciosList);
+
+      // Establece el primer servicio como seleccionado por defecto.
+      if (serviciosList.length > 0) {
+        setServicioSeleccionado(serviciosList[0].id);
+      }
     };
 
     fetchServicios();
@@ -38,23 +43,18 @@ function Cotizaciones() {
 
   useEffect(() => {
     const fetchCotizaciones = async () => {
-      let cotizacionesQuery;
-      if (servicioSeleccionado && servicioSeleccionado !== 'todos') {
+      if (servicioSeleccionado) {
         const cotizacionesRef = collection(db, 'servicios', servicioSeleccionado, 'cotizaciones');
-        cotizacionesQuery = cotizacionesRef;
-      } else {
-        cotizacionesQuery = collection(db, 'servicios');
+        const unsubscribe = onSnapshot(cotizacionesRef, (snapshot) => {
+          const cotizacionesList = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setCotizaciones(cotizacionesList);
+        });
+
+        return () => unsubscribe();
       }
-
-      const unsubscribe = onSnapshot(cotizacionesQuery, (snapshot) => {
-        const cotizacionesList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCotizaciones(cotizacionesList);
-      });
-
-      return () => unsubscribe();
     };
 
     fetchCotizaciones();
@@ -149,7 +149,6 @@ function Cotizaciones() {
               value={servicioSeleccionado}
               onChange={(e) => setServicioSeleccionado(e.target.value)}
             >
-              <option value="todos">Todos los servicios</option>
               {servicios.map((servicio) => (
                 <option key={servicio.id} value={servicio.id}>
                   {servicio.nombre}

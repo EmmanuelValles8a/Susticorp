@@ -5,23 +5,21 @@ import { db } from '@/app/firebase/config';
 import Navbar from '@/app/components/navbar';
 import Link from 'next/link';
 import withAuth from '@/app/hoc/withAuth';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
 
 function Dashboard() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [counts, setCounts] = useState({ citas: 0, cotizaciones: 0 });
-  const [pendingDates, setPendingDates] = useState([]); // Array to hold pending dates
+  const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
-    const fetchCountsAndDates = async () => {
+    const fetchCounts = async () => {
       try {
         const serviciosRef = collection(db, 'servicios');
         const serviciosSnapshot = await getDocs(serviciosRef);
 
         let citasCount = 0;
         let cotizacionesCount = 0;
-        const dates = [];
+        const activities = [];
 
         for (const servicioDoc of serviciosSnapshot.docs) {
           const citasRef = collection(servicioDoc.ref, 'citas');
@@ -36,36 +34,25 @@ function Dashboard() {
           citasCount += citasSnapshot.size;
           cotizacionesCount += cotizacionesSnapshot.size;
 
-          // Collect pending dates from both citas and cotizaciones
           citasSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            if (data.fecha) dates.push(new Date(data.fecha));
+            activities.push({ type: 'Cita', fecha: data.fecha, estado: data.estado });
           });
           cotizacionesSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            if (data.fecha) dates.push(new Date(data.fecha));
+            activities.push({ type: 'Cotización', fecha: data.fecha, estado: data.estado });
           });
         }
 
         setCounts({ citas: citasCount, cotizaciones: cotizacionesCount });
-        setPendingDates(dates);
+        setRecentActivities(activities);
       } catch (error) {
-        console.error('Error fetching counts and dates:', error);
+        console.error('Error fetching counts:', error);
       }
     };
 
-    fetchCountsAndDates();
+    fetchCounts();
   }, []);
-
-  const tileClassName = ({ date, view }) => {
-    if (view === 'month') {
-      const isPending = pendingDates.some(pendingDate => 
-        date.toDateString() === pendingDate.toDateString()
-      );
-      return isPending ? 'bg-teal-300 text-teal-900' : null;
-    }
-    return null;
-  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -89,11 +76,29 @@ function Dashboard() {
             ))}
           </div>
           <div className="mt-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Calendario de pendientes</h2>
-            <Calendar
-              tileClassName={tileClassName} // Highlight pending dates
-              className="gap-6 p-6 react-calendar text-black p-2 rounded-lg shadow-md"
-            />
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Actividades Recientes</h2>
+            {recentActivities.length > 0 ? (
+              <table className="min-w-full bg-white border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Tipo</th>
+                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Fecha</th>
+                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentActivities.map((activity, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="py-2 px-4 border-b text-gray-800">{activity.type}</td>
+                      <td className="py-2 px-4 border-b text-gray-800">{activity.fecha || 'N/A'}</td>
+                      <td className="py-2 px-4 border-b text-gray-800">{activity.estado || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-600">No hay actividades recientes para mostrar.</p>
+            )}
           </div>
         </div>
       </div>

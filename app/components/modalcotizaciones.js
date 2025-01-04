@@ -10,12 +10,23 @@ const ModalCotizaciones = ({ isOpen, onClose }) => {
   const buscarCotizaciones = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'cotizaciones'), where('telefono', '==', telefono));
+      const telefonoAjustado = telefono.trim();
+      const q = query(collection(db, "cotizaciones"), where("telefono", "==", telefonoAjustado));
       const querySnapshot = await getDocs(q);
-      const cotizacionesEncontradas = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setCotizaciones(cotizacionesEncontradas);
+  
+      if (querySnapshot.empty) {
+        console.log("No se encontraron documentos para este teléfono:", telefonoAjustado);
+        setCotizaciones([]);
+      } else {
+        const cotizacionesEncontradas = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        console.log("Cotizaciones encontradas:", cotizacionesEncontradas);
+        setCotizaciones(cotizacionesEncontradas);
+      }
     } catch (error) {
-      console.error('Error al buscar cotizaciones:', error);
+      console.error("Error al buscar cotizaciones:", error);
     } finally {
       setLoading(false);
     }
@@ -24,7 +35,7 @@ const ModalCotizaciones = ({ isOpen, onClose }) => {
   return (
     isOpen && (
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-        <div className="bg-white w-full max-w-lg p-6 rounded-lg shadow-lg relative">
+        <div className="bg-white w-full text-black max-w-lg p-6 rounded-lg shadow-lg relative">
           <button
             className="absolute top-4 right-4 text-gray-600 hover:text-gray-800"
             onClick={onClose}
@@ -54,16 +65,28 @@ const ModalCotizaciones = ({ isOpen, onClose }) => {
             </button>
           </div>
 
-          <ul>
+          <ul className="mt-4">
             {cotizaciones.map((cotizacion) => (
               <li key={cotizacion.id} className="border-b py-2">
                 <p>
                   <strong>Estado:</strong> {cotizacion.estado}
                 </p>
+                <p>
+                  <strong>Costo Estimado:</strong> ${cotizacion.costoestimado}
+                </p>
                 <p>{cotizacion.descripcion}</p>
+                <p>
+                  <strong>Fecha:</strong> {cotizacion.fecha}
+                </p>
               </li>
             ))}
           </ul>
+
+          {cotizaciones.length === 0 && !loading && (
+            <p className="text-center text-gray-500 mt-4">
+              No se encontraron cotizaciones para este número de teléfono.
+            </p>
+          )}
         </div>
       </div>
     )

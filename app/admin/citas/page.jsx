@@ -28,7 +28,11 @@ function Citas() {
         id: doc.id,
         ...doc.data(),
       }));
+
       setServicios(serviciosList);
+      if (serviciosList.length > 0) {
+        setServicioSeleccionado(serviciosList[0].id); // Selecciona el primer servicio por defecto
+      }
     };
 
     fetchServicios();
@@ -36,15 +40,10 @@ function Citas() {
 
   useEffect(() => {
     const fetchCitas = async () => {
-      let citasQuery;
-      if (servicioSeleccionado && servicioSeleccionado !== 'todos') {
-        const citasRef = collection(db, 'servicios', servicioSeleccionado, 'citas');
-        citasQuery = citasRef;
-      } else {
-        citasQuery = collection(db, 'servicios');
-      }
+      if (!servicioSeleccionado) return;
 
-      const unsubscribe = onSnapshot(citasQuery, (snapshot) => {
+      const citasRef = collection(db, 'servicios', servicioSeleccionado, 'citas');
+      const unsubscribe = onSnapshot(citasRef, (snapshot) => {
         const citasList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -80,14 +79,7 @@ function Citas() {
     if (!result.isConfirmed) return;
 
     try {
-      let citaDocRef;
-
-      if (servicioSeleccionado && servicioSeleccionado !== 'todos') {
-        citaDocRef = doc(db, 'servicios', servicioSeleccionado, 'citas', id);
-      } else {
-        citaDocRef = doc(db, 'citas', id);
-      }
-
+      const citaDocRef = doc(db, 'servicios', servicioSeleccionado, 'citas', id);
       await updateDoc(citaDocRef, { estado: 'Atendida' });
 
       Swal.fire({
@@ -118,14 +110,7 @@ function Citas() {
     if (!result.isConfirmed) return;
 
     try {
-      let citaDocRef;
-
-      if (servicioSeleccionado && servicioSeleccionado !== 'todos') {
-        citaDocRef = doc(db, 'servicios', servicioSeleccionado, 'citas', id);
-      } else {
-        citaDocRef = doc(db, 'citas', id);
-      }
-
+      const citaDocRef = doc(db, 'servicios', servicioSeleccionado, 'citas', id);
       await updateDoc(citaDocRef, { estado: 'Cancelada' });
 
       Swal.fire({
@@ -149,10 +134,7 @@ function Citas() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
       <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-
-      {/* Main Content */}
       <div className="flex-1 p-6">
         <header className="flex items-center justify-between mb-8 lg:hidden">
           <h1 className="text-2xl font-bold">Citas</h1>
@@ -178,7 +160,7 @@ function Citas() {
         <div className="flex justify-between items-center mb-4 space-x-4">
           <div className="flex-1">
             <label htmlFor="servicios" className="block text-black font-semibold mb-2">
-              Próximas citas:
+              Servicio seleccionado:
             </label>
             <select
               id="servicios"
@@ -186,7 +168,6 @@ function Citas() {
               value={servicioSeleccionado}
               onChange={(e) => setServicioSeleccionado(e.target.value)}
             >
-              <option value="todos">Todos los servicios</option>
               {servicios.map((servicio) => (
                 <option key={servicio.id} value={servicio.id}>
                   {servicio.nombre}
@@ -197,7 +178,7 @@ function Citas() {
 
           <div className="flex-1">
             <label htmlFor="search" className="block text-black font-semibold mb-2">
-              Buscar por número de telefono:
+              Buscar por número de teléfono:
             </label>
             <input
               id="search"
